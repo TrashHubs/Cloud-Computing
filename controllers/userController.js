@@ -55,12 +55,12 @@ const register = async (req, res) => {
       return res.status(400).json({
         error: true,
         message: "Email already exists!",
-      });
+      })
     } else if (phoneExist) {
       return res.status(400).json({
         error: true,
         message: "Phone already exists!",
-      });
+      })
     } else {
       const hashedPassword = await bcrypt.hash(password, 10);
       await admin.auth().createUser({
@@ -90,13 +90,13 @@ const register = async (req, res) => {
           phone: user.phone,
           roles: user.roles,
         },
-      });
+      })
     }
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: error.message,
-    });
+      message: "Failed to create user!",
+    })
   }
 }
 
@@ -139,18 +139,18 @@ const login = async (req, res) => {
           name: user.name,
           token: token,
         },
-      });
+      })
     } else {
       return res.status(401).json({
         error: true,
         message: 'Email or password is incorrect!',
-      });
+      })
     }
   } catch (error) {
     return res.status(400).json({
       error: true,
       message: "Failed to login!",
-    });
+    })
   }
 }
 
@@ -164,12 +164,12 @@ const profile = async (req, res) => {
       return res.status(404).json({
         error: true,
         message: "User not found!",
-      });
+      })
     } else if (user.token !== req.headers.authorization?.split(" ")[1]) {
       return res.status(401).json({
         error: true,
         message: "Not Authorized!",
-      });
+      })
     }
 
     return res.status(200).json({
@@ -184,12 +184,12 @@ const profile = async (req, res) => {
         mitra: user.mitra,
         roles: user.roles,
       },
-    });
+    })
   } catch (error) {
-    return res.status(400).json({
+    return res.status(404).json({
       error: true,
-      message: "Failed to get user!",
-    });
+      message: "User not found!",
+    })
   }
 }
 
@@ -215,7 +215,7 @@ const update = async (req, res) => {
       return res.status(401).json({ 
         error: true,
         message: "Not Authorized!",
-      });
+      })
 
     } else {
       if (exist.roles == "mitra") {
@@ -251,13 +251,13 @@ const update = async (req, res) => {
           mitra: user.mitra,
           roles: exist.roles,
         },
-      });
+      })
     }
   } catch (error) {
     return res.status(400).json({
       error: true,
       message: "Failed to update user!",
-    });
+    })
   }
 }
 
@@ -288,7 +288,7 @@ const changePassword = async (req, res) => {
       return res.status(401).json({ 
         error: true,
         message: "Not Authorized!",
-      });
+      })
 
     } else {
       const checkPassword = await bcrypt.compare(oldPassword, user.password);
@@ -296,7 +296,7 @@ const changePassword = async (req, res) => {
         return res.status(401).json({
           error: true,
           message: 'Old password is incorrect!',
-        });
+        })
 
       } else {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -316,7 +316,7 @@ const changePassword = async (req, res) => {
           return res.status(200).json({
             error: false,
             message: "Successfully change password!",
-          });
+          })
         }
       }
     }
@@ -324,7 +324,7 @@ const changePassword = async (req, res) => {
     return res.status(400).json({
       error: true,
       message: "Failed to change password!",
-    });
+    })
   }
 }
 

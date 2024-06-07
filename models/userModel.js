@@ -62,11 +62,11 @@ class User {
   static update = async (user) => {
     const { id, name, address, mitra } = user;
     await db.collection("users").doc(id).update({ name, address, mitra });
-  };
+  }
 
   static changePassword = async (id, password) => {
     await db.collection("users").doc(id).update({ password });
-  };
+  }
 }
 
 module.exports = User;

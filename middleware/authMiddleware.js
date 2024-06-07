@@ -11,7 +11,7 @@ const verifyToken = async (req, res, next) => {
     res.status(401).json({
       error: true,
       message: "Not Authorized",
-    });
+    })
   }
 }
 

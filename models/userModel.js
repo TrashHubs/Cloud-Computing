@@ -1,7 +1,7 @@
 const { db } = require("../config/firebaseConfig");
 
 class User {
-  constructor(id, name, email, password, phone, address, mitra, roles) {
+  constructor(id, name, email, password, phone, address, mitra, roles, token) {
     this.id = id;
     this.name = name;
     this.email = email;
@@ -10,11 +10,12 @@ class User {
     this.address = address;
     this.mitra = mitra;
     this.roles = roles;
+    this.token = token;
   }
 
   static save = async (user) => {
-    const { id, name, email, password, phone, address, mitra, roles } = user;
-    await db.collection("users").doc(id).set({ name, email, password, phone, address, mitra, roles });
+    const { id, name, email, password, phone, address, mitra, roles, token } = user;
+    await db.collection("users").doc(id).set({ name, email, password, phone, address, mitra, roles, token });
   }
 
   static findById = async (id) => {
@@ -22,7 +23,7 @@ class User {
 
     if (doc.exists) {
       const data = doc.data();
-      return new User(id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles);
+      return new User(id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles, data.token);
     }
 
     return null;
@@ -38,13 +39,29 @@ class User {
     const doc = snapshot.docs[0];
     const data = doc.data();
 
-    return new User(doc.id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles);
+    return new User(doc.id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles, data.token);
+  }
+
+  static findByPhone = async (phone) => {
+    const snapshot = await db.collection("users").where("phone", "==", phone).get();
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+
+    return new User(doc.id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles, data.token);
+  }
+
+  static updateToken = async (id, token) => {
+    await db.collection("users").doc(id).update({ token });
   }
 
   static update = async (user) => {
-    const { id, name, phone, address, mitra } = user;
-
-    await db.collection("users").doc(id).update({ name, phone, address, mitra });
+    const { id, name, address, mitra } = user;
+    await db.collection("users").doc(id).update({ name, address, mitra });
   };
 
   static changePassword = async (id, password) => {

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const verifyToken = async (req, res, next) =>{
+const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   try {
@@ -9,7 +9,8 @@ const verifyToken = async (req, res, next) =>{
     next();
   } catch (error) {
     res.status(401).json({
-      status: "Unauthorized",
+      error: true,
+      message: "Not Authorized",
     });
   }
 }

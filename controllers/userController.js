@@ -77,7 +77,7 @@ const register = async (req, res) => {
         roles = "mitra";
       }
 
-      const user = new User(id, name, email, hashedPassword, phone, "", mitra, roles, "");
+      const user = new User(id, name, email, hashedPassword, phone, "", mitra, roles);
       await User.save(user);
 
       return res.status(201).json({
@@ -165,11 +165,6 @@ const profile = async (req, res) => {
         error: true,
         message: "User not found!",
       })
-    } else if (user.token !== req.headers.authorization?.split(" ")[1]) {
-      return res.status(401).json({
-        error: true,
-        message: "Not Authorized!",
-      })
     }
 
     return res.status(200).json({
@@ -211,48 +206,41 @@ const update = async (req, res) => {
 
   try {
     const exist = await User.findById(id);
-    if (exist.token !== req.headers.authorization?.split(" ")[1]) {
-      return res.status(401).json({ 
-        error: true,
-        message: "Not Authorized!",
-      })
-
-    } else {
-      if (exist.roles == "mitra") {
-        if (!mitra) {
-          return res.status(400).json({
-            error: true,
-            message: "Mitra is required!",
-          })
-        }
-      } else {
-        if (mitra) {
-          return res.status(400).json({
-            error: true,
-            message: "User is not mitra!",
-          })
-        }
+    
+    if (exist.roles == "mitra") {
+      if (!mitra) {
+        return res.status(400).json({
+          error: true,
+          message: "Mitra is required!",
+        })
       }
-
-      await admin.auth().updateUser(id, { displayName: name });
-
-      const user = new User(id, name, "", "", "", address, mitra, "", "");
-      await User.update(user);
-
-      return res.status(200).json({
-        error: false,
-        message: "Successfully update user!",
-        updateResult: {
-          id: exist.id,
-          name: user.name,
-          email: exist.email,
-          phone: exist.phone,
-          address: user.address,
-          mitra: user.mitra,
-          roles: exist.roles,
-        },
-      })
+    } else {
+      if (mitra) {
+        return res.status(400).json({
+          error: true,
+          message: "User is not mitra!",
+        })
+      }
     }
+
+    await admin.auth().updateUser(id, { displayName: name });
+
+    const user = new User(id, name, "", "", "", address, mitra, "");
+    await User.update(user);
+
+    return res.status(200).json({
+      error: false,
+      message: "Successfully update user!",
+      updateResult: {
+        id: exist.id,
+        name: user.name,
+        email: exist.email,
+        phone: exist.phone,
+        address: user.address,
+        mitra: user.mitra,
+        roles: exist.roles,
+      },
+    })
   } catch (error) {
     return res.status(400).json({
       error: true,
@@ -263,22 +251,17 @@ const update = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const { id } = req.params;
-  const { oldPassword, newPassword, confirmPassword } = req.body;
+  const { oldPassword, newPassword } = req.body;
 
   if (validator.isEmpty(oldPassword)) {
     return res.status(400).json({
-      success: false,
+      error: true,
       message: "Old password is required!",
     })
   } else if (validator.isEmpty(newPassword)) {
     return res.status(400).json({
-      success: false,
+      error: true,
       message: "New password is required!",
-    })
-  } else if (validator.isEmpty(confirmPassword)) {
-    return res.status(400).json({
-      success: false,
-      message: "Confirm password is required!",
     })
   }
 
@@ -301,23 +284,16 @@ const changePassword = async (req, res) => {
       } else {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        if (newPassword !== confirmPassword) {
-          return res.status(400).json({
-            success: false,
-            message: "New password and confirm password not match!",
-          })
-        } else {
-          await admin.auth().updateUser(id, { password: hashedPassword });
-          await User.changePassword(id, hashedPassword);
+        await admin.auth().updateUser(id, { password: hashedPassword });
+        await User.changePassword(id, hashedPassword);
 
-          const token = jwt.sign({ uid: user.id, email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-          await User.updateToken(id, token);
+        const token = jwt.sign({ uid: user.id, email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+        await User.updateToken(id, token);
 
-          return res.status(200).json({
-            error: false,
-            message: "Successfully change password!",
-          })
-        }
+        return res.status(200).json({
+          error: false,
+          message: "Successfully change password!",
+        })
       }
     }
   } catch (error) {
@@ -328,4 +304,35 @@ const changePassword = async (req, res) => {
   }
 }
 
-module.exports = { register, login, profile, update, changePassword };
+const verify = async (req, res) => {
+  const { email } = req.params;
+
+  try {
+    const user = await admin.auth().getUserByEmail(email);
+
+    if (!user.emailVerified) {
+      const link = await admin.auth().generateEmailVerificationLink(email);
+
+      return res.status(400).json({
+        error: true,
+        message: "Please verify your email!",
+        verifyLink: link
+      })
+    } else {
+      await User.verified(user.uid)
+
+      return res.status(200).json({
+        error: false,
+        message: "Successfully verified email!"
+      })
+    }
+
+  } catch (error) {
+    return res.status(400).json({
+      error: true,
+      message: "Failed to verify email!"
+    })
+  }
+}
+
+module.exports = { register, login, profile, update, changePassword, verify };

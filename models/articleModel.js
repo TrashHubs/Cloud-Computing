@@ -45,7 +45,7 @@ class Article {
   }
 
   static findByTitle = async (title) => {
-    const snapshot = await db.collection("articles").where("title", "==", title).get();
+    const snapshot = await db.collection("articles").where("title", ">=", title).where("title", "<=", title + '\uf8ff').get();
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();

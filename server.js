@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 8080;
 
 const users = require("./routes/users");
 const articles = require("./routes/articles");
+const pickup = require("./routes/pickup");
 
 const app = express();
 app.use(express.static(__dirname))
@@ -14,6 +15,7 @@ app.use(express.json())
 
 app.use('/users', users);
 app.use('/articles', articles);
+// app.use('/pickup', pickup);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

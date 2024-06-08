@@ -20,7 +20,7 @@ const getAll = async (req, res) => {
 }
 
 const getNews = async (req, res) => {
-  let { limit } = req.query;
+  let { limit } = req.params;
   limit = parseInt(limit)
 
   try {
@@ -159,4 +159,30 @@ const deleteById = async (req, res) => {
   }
 }
 
-module.exports = { getAll, getNews, getById, create, update, deleteById };
+const search = async (req, res) => {
+  const { title } = req.params;
+
+  try {
+    const article = await Article.findByTitle(title);
+
+    if (!article) {
+      return res.status(404).json({
+        error: true,
+        message: "Article not found!"
+      })
+    }
+
+    return res.status(200).json({
+      error: false,
+      message: "Successfully get article!",
+      article: article
+    })
+  } catch (error) {
+    return res.status(400).json({
+      error: true,
+      message: "Failed to get article!"
+    })
+  }
+}
+
+module.exports = { getAll, getNews, getById, create, update, deleteById, search };

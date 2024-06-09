@@ -14,36 +14,22 @@ const register = async (req, res) => {
   if (validator.isEmpty(name)) {
     return res.status(400).json({
       error: true,
-      message: "Name is required!",
+      message: "Name is required!"
     })
-  } else if (validator.isEmpty(email)) {
+  } else if (validator.isEmpty(email) || !validator.isEmail(email)) {
     return res.status(400).json({
       error: true,
-      message: "Email is required!",
+      message: "Valid email is required!"
     })
   } else if (validator.isEmpty(password)) {
     return res.status(400).json({
       error: true,
-      message: "Password is required!",
+      message: "Password is required!"
     })
-  } else if (validator.isEmpty(phone)) {
+  } else if (validator.isEmpty(phone) || !validator.matches(phone, /^\+628\d{9,11}$/)) {
     return res.status(400).json({
       error: true,
-      message: "Phone is required!",
-    })
-  }
-
-  if (!validator.isEmail(email)) {
-    return res.status(400).json({
-      error: true,
-      message: "Invalid email address!",
-    })
-  }
-
-  if (!validator.matches(phone, /^\+628\d{9,11}$/)) {
-    return res.status(400).json({
-      error: true,
-      message: "Invalid phone number!",
+      message: "Valid phone number is required!"
     })
   }
 
@@ -54,13 +40,15 @@ const register = async (req, res) => {
     if (emailExist) {
       return res.status(400).json({
         error: true,
-        message: "Email already exists!",
+        message: "Email already exists!"
       })
+
     } else if (phoneExist) {
       return res.status(400).json({
         error: true,
-        message: "Phone already exists!",
+        message: "Phone already exists!"
       })
+
     } else {
       const hashedPassword = await bcrypt.hash(password, 10);
       await admin.auth().createUser({
@@ -92,10 +80,11 @@ const register = async (req, res) => {
         },
       })
     }
+
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to create user!",
+      message: "Failed to create user!"
     })
   }
 }
@@ -103,22 +92,15 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   const { email, password } = req.body;
 
-  if (validator.isEmpty(email)) {
+  if (validator.isEmpty(email) || !validator.isEmail(email)) {
     return res.status(400).json({
       error: true,
-      message: "Email is required!",
+      message: "Valid email is required!"
     })
   } else if (validator.isEmpty(password)) {
     return res.status(400).json({
       error: true,
-      message: "Password is required!",
-    })
-  }
-
-  if (!validator.isEmail(email)) {
-    return res.status(400).json({
-      error: true,
-      message: "Invalid email address!",
+      message: "Password is required!"
     })
   }
 
@@ -140,16 +122,18 @@ const login = async (req, res) => {
           token: token,
         },
       })
+
     } else {
       return res.status(401).json({
         error: true,
-        message: 'Email or password is incorrect!',
+        message: "Email or password is incorrect!"
       })
     }
+
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to login!",
+      message: "Failed to login!"
     })
   }
 }
@@ -159,11 +143,10 @@ const profile = async (req, res) => {
 
   try {
     const user = await User.findById(id);
-
     if (!user) {
       return res.status(404).json({
         error: true,
-        message: "User not found!",
+        message: "User not found!"
       })
     }
 
@@ -180,10 +163,11 @@ const profile = async (req, res) => {
         roles: user.roles,
       },
     })
+
   } catch (error) {
     return res.status(404).json({
       error: true,
-      message: "User not found!",
+      message: "User not found!"
     })
   }
 }
@@ -195,30 +179,30 @@ const update = async (req, res) => {
   if (validator.isEmpty(name)) {
     return res.status(400).json({
       error: true,
-      message: "Name is required!",
+      message: "Name is required!"
     })
   } else if (validator.isEmpty(address)) {
     return res.status(400).json({
       error: true,
-      message: "Address is required!",
+      message: "Address is required!"
     })
   }
 
   try {
     const exist = await User.findById(id);
-    
     if (exist.roles == "mitra") {
       if (!mitra) {
         return res.status(400).json({
           error: true,
-          message: "Mitra is required!",
+          message: "Mitra is required!"
         })
       }
+
     } else {
       if (mitra) {
         return res.status(400).json({
           error: true,
-          message: "User is not mitra!",
+          message: "User is not mitra!"
         })
       }
     }
@@ -241,10 +225,11 @@ const update = async (req, res) => {
         roles: exist.roles,
       },
     })
+
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to update user!",
+      message: "Failed to update user!"
     })
   }
 }
@@ -256,50 +241,44 @@ const changePassword = async (req, res) => {
   if (validator.isEmpty(oldPassword)) {
     return res.status(400).json({
       error: true,
-      message: "Old password is required!",
+      message: "Old password is required!"
     })
   } else if (validator.isEmpty(newPassword)) {
     return res.status(400).json({
       error: true,
-      message: "New password is required!",
+      message: "New password is required!"
     })
   }
 
   try {
     const user = await User.findById(id);
-    if (user.token !== req.headers.authorization?.split(" ")[1]) {
-      return res.status(401).json({ 
+
+    const checkPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!checkPassword) {
+      return res.status(401).json({
         error: true,
-        message: "Not Authorized!",
+        message: "Old password is incorrect!"
       })
 
     } else {
-      const checkPassword = await bcrypt.compare(oldPassword, user.password);
-      if (!checkPassword) {
-        return res.status(401).json({
-          error: true,
-          message: 'Old password is incorrect!',
-        })
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      } else {
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await admin.auth().updateUser(id, { password: hashedPassword });
+      await User.changePassword(id, hashedPassword);
 
-        await admin.auth().updateUser(id, { password: hashedPassword });
-        await User.changePassword(id, hashedPassword);
+      const token = jwt.sign({ uid: user.id, email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+      await User.updateToken(id, token);
 
-        const token = jwt.sign({ uid: user.id, email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-        await User.updateToken(id, token);
-
-        return res.status(200).json({
-          error: false,
-          message: "Successfully change password!",
-        })
-      }
+      return res.status(200).json({
+        error: false,
+        message: "Successfully change password!"
+      })
     }
+
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to change password!",
+      message: "Failed to change password!"
     })
   }
 }
@@ -312,15 +291,14 @@ const verify = async (req, res) => {
 
     if (!user.emailVerified) {
       const link = await admin.auth().generateEmailVerificationLink(email);
-
       return res.status(400).json({
         error: true,
         message: "Please verify your email!",
         verifyLink: link
       })
+
     } else {
       await User.verified(user.uid)
-
       return res.status(200).json({
         error: false,
         message: "Successfully verified email!"
@@ -330,7 +308,7 @@ const verify = async (req, res) => {
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to verify email!"
+      message: "Failed to verify email. Please try again later!"
     })
   }
 }

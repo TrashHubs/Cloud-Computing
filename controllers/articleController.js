@@ -4,13 +4,13 @@ const { v4: uuidv4 } = require("uuid");
 
 const getAll = async (req, res) => {
   try {
-    const articles = await Article.findAll();
-
+    const article = await Article.findAll();
     return res.status(200).json({
       error: false,
-      message: "Successfully get article!",
-      articles: articles
+      message: "Successfully get articles!",
+      articleResults: article
     })
+
   } catch (error) {
     return res.status(404).json({
       error: true,
@@ -21,15 +21,16 @@ const getAll = async (req, res) => {
 
 const getNews = async (req, res) => {
   let { limit } = req.params;
-  limit = parseInt(limit)
+  limit = parseInt(limit);
 
   try {
     const article = await Article.findNews(limit);
     return res.status(200).json({
       error: false,
       message: "Successfully get news!",
-      article: article
+      articleResult: article
     })
+
   } catch (error) {
     return res.status(404).json({
       error: true,
@@ -42,23 +43,32 @@ const getById = async (req, res) => {
   const { id } = req.params;
   try {
     const article = await Article.findById(id);
-    return res.status(200).json({
-      error: false,
-      message: "Successfully get article!",
-      article: article
-    })
+
+    if (!article) {
+      return res.status(404).json({
+        error: true,
+        message: "Article not found!"
+      })
+
+    } else {
+      return res.status(200).json({
+        error: false,
+        message: "Successfully get article!",
+        articleResult: article
+      })
+    }
+
   } catch (error) {
-    return res.status(404).json({
+    return res.status(400).json({
       error: true,
-      message: "Article not found!"
+      message: "Failed to get article!"
     })
   }
 }
 
 const create = async (req, res) => {
-  const { title, content, author, imageUrl } = req.body;
+  const { title, content, author, imageUrl, date } = req.body;
   const id = uuidv4();
-  let date = new Date().toISOString().split('T')[0];
 
   if (validator.isEmpty(title)) {
     return res.status(400).json({
@@ -80,6 +90,11 @@ const create = async (req, res) => {
       error: true,
       message: "imageUrl is required!"
     })
+  } else if (validator.isEmpty(date) || !validator.isDate(date)) {
+    return res.status(400).json({
+      error: true,
+      message: "Valid date is required!"
+    });
   }
 
   try {
@@ -89,8 +104,9 @@ const create = async (req, res) => {
     return res.status(200).json({
       error: false,
       message: "Successfully create article!",
-      article: article
+      createResult: article
     })
+
   } catch (error) {
     return res.status(400).json({
       error: true,
@@ -126,18 +142,28 @@ const update = async (req, res) => {
   }
 
   try {
-    const article = new Article(id, title, content, author, imageUrl, "");
-    await Article.updateById(id, article);
+    const exist = await Article.findById(id);
+    if (!exist) {
+      return res.status(404).json({
+        error: true,
+        message: "Article not found!"
+      })
 
-    return res.status(200).json({
-      error: false,
-      message: "Successfully update article!",
-      article: article
-    })
+    } else {
+      const article = new Article(id, title, content, author, imageUrl, "");
+      await Article.updateById(article);
+
+      return res.status(200).json({
+        error: false,
+        message: "Successfully update article!",
+        updateResult: exist
+      })
+    }
+
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to update article!"
+      message: error.message
     })
   }
 }
@@ -146,11 +172,21 @@ const deleteById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await Article.deleteById(id);
-    return res.status(200).json({
-      error: false,
-      message: "Successfully delete article!"
-    })
+    const exist = await Article.findById(id);
+    if (!exist) {
+      return res.status(404).json({
+        error: true,
+        message: "Article not found!"
+      })
+
+    } else {
+      await Article.deleteById(id);
+      return res.status(200).json({
+        error: false,
+        message: "Successfully delete article!"
+      })
+    }
+
   } catch (error) {
     return res.status(500).json({
       error: true,
@@ -170,13 +206,14 @@ const search = async (req, res) => {
         error: true,
         message: "Article not found!"
       })
+    } else {
+      return res.status(200).json({
+        error: false,
+        message: "Successfully get article!",
+        searchResult: article
+      })
     }
 
-    return res.status(200).json({
-      error: false,
-      message: "Successfully get article!",
-      article: article
-    })
   } catch (error) {
     return res.status(400).json({
       error: true,

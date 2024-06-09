@@ -29,6 +29,10 @@ class Article {
   static findAll = async () => {
     const snapshot = await db.collection("articles").get();
 
+    if (snapshot.empty) {
+      return null;
+    }
+
     return snapshot.docs.map((doc) => {
       const data = doc.data();
       return new Article(doc.id, data.title, data.content, data.author, data.imageUrl, data.date);
@@ -37,6 +41,10 @@ class Article {
 
   static findNews = async (limit) => {
     const snapshot = await db.collection("articles").orderBy("date", "desc").limit(limit).get();
+
+    if (snapshot.empty) {
+      return null;
+    }
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -47,14 +55,18 @@ class Article {
   static findByTitle = async (title) => {
     const snapshot = await db.collection("articles").where("title", ">=", title).where("title", "<=", title + '\uf8ff').get();
 
+    if (snapshot.empty) {
+      return null;
+    }
+
     return snapshot.docs.map((doc) => {
       const data = doc.data();
       return new Article(doc.id, data.title, data.content, data.author, data.imageUrl, data.date);
     })
   }
 
-  static updateById = async (id, article) => {
-    const { title, content, author, imageUrl } = article;
+  static updateById = async (article) => {
+    const { id, title, content, author, imageUrl } = article;
     await db.collection("articles").doc(id).update({ title, content, author, imageUrl });
   }
 

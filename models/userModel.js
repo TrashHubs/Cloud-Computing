@@ -67,8 +67,8 @@ class User {
     await db.collection("users").doc(id).update({ password });
   }
 
-  static verified = async (user) => {
-    await db.collection('users').doc(user).update({ verified: true });
+  static verified = async (id) => {
+    await db.collection('users').doc(id).update({ verified: true });
   }
 }
 

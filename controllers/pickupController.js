@@ -1,55 +1,81 @@
+const { bucket } = require("../config/firebaseConfig");
+
 const Pickup = require("../models/pickupModel");
 const validator = require('validator');
 const { v4: uuidv4 } = require("uuid");
 
+const multer = require('multer');
+const storage = multer({
+  storage: multer.memoryStorage(),
+  fileSize: 1 * 1024 * 1024
+}).single('photo');
+
 const create = async (req, res) => {
-  const { photo, weight, lat, lon, description } = req.body;
-  const id = uuidv4();
-  let status = "pending";
+  storage(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({
+        error: true,
+        message: "Failed to upload photo!"
+      })
+    }
 
-  if (validator.isEmpty(photo)) {
-    return res.status(400).json({
-      error: true,
-      message: "Photo is required!"
-    })
-  } else if (validator.isEmpty(weight)) {
-    return res.status(400).json({
-      error: true,
-      message: "Weight is required!"
-    })
-  } else if (validator.isEmpty(lat)) {
-    return res.status(400).json({
-      error: true,
-      message: "Latitude is required!"
-    })
-  } else if (validator.isEmpty(lon)) {
-    return res.status(400).json({
-      error: true,
-      message: "Longitude is required!"
-    })
-  } else if (validator.isEmpty(description)) {
-    return res.status(400).json({
-      error: true,
-      message: "Description is required!"
-    })
-  }
+    const { weight, lat, lon, description } = req.body;
+    const id = uuidv4();
+    const photo = req.file;
+    let status = "pending";
 
-  try {
-    const pickup = new Pickup(id, photo, weight, lat, lon, description, "", "", status);
-    await Pickup.save(pickup);
+    const fileName = `${photo.originalname}-${Date.now()}`;
+    const folderName = 'pickups';
 
-    return res.status(200).json({
-      error: false,
-      message: "Successfully create pickup!",
-      createResult: pickup
-    })
+    const filePath = `${folderName}/${fileName}`;
+    const file = bucket.file(filePath);
 
-  } catch (error) {
-    return res.status(400).json({
-      error: true,
-      message: "Failed to create pickup!"
-    })
-  }
+    if (validator.isEmpty(weight)) {
+      return res.status(400).json({
+        error: true,
+        message: "Weight is required!"
+      })
+    } else if (validator.isEmpty(lat)) {
+      return res.status(400).json({
+        error: true,
+        message: "Latitude is required!"
+      })
+    } else if (validator.isEmpty(lon)) {
+      return res.status(400).json({
+        error: true,
+        message: "Longitude is required!"
+      })
+    } else if (validator.isEmpty(description)) {
+      return res.status(400).json({
+        error: true,
+        message: "Description is required!"
+      })
+    }
+
+    try {
+      await file.save(photo.buffer, {
+        metadata: { contentType: photo.mimetype }
+      });
+
+      await file.makePublic();
+      const photoUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
+
+      const pickup = new Pickup(id, photoUrl, weight, lat, lon, description, "", "", status);
+      await Pickup.save(pickup);
+
+      return res.status(200).json({
+        error: false,
+        message: "Successfully create pickup!",
+        createResult: pickup
+      })
+
+    } catch (error) {
+      return res.status(400).json({
+        error: true,
+        message: "Failed to create pickup!"
+      })
+    }
+  })
 }
 
 const getById = async (req, res) => {
@@ -163,6 +189,10 @@ const deleteById = async (req, res) => {
       })
 
     } else {
+      const oldFilePath = exist.photo.split(`https://storage.googleapis.com/${bucket.name}/`)[1];
+      const oldFile = bucket.file(oldFilePath);
+      await oldFile.delete();
+
       await Pickup.deleteById(id);
       return res.status(200).json({
         error: false,

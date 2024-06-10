@@ -1,18 +1,18 @@
 const { db } = require("../config/firebaseConfig");
 
 class Article {
-  constructor(id, title, content, author, imageUrl, date) {
+  constructor(id, title, content, author, image, date) {
     this.id = id;
     this.title = title;
     this.content = content;
     this.author = author;
-    this.imageUrl = imageUrl;
+    this.image = image;
     this.date = date;
   }
 
   static save = async (article) => {
-    const { id, title, content, author, imageUrl, date } = article;
-    await db.collection("articles").doc(id).set({ title, content, author, imageUrl, date });
+    const { id, title, content, author, image, date } = article;
+    await db.collection("articles").doc(id).set({ title, content, author, image, date });
   }
 
   static findById = async (id) => {
@@ -23,7 +23,7 @@ class Article {
     }
 
     const data = doc.data();
-    return new Article(doc.id, data.title, data.content, data.author, data.imageUrl, data.date);
+    return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
   }
 
   static findAll = async () => {
@@ -35,7 +35,7 @@ class Article {
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();
-      return new Article(doc.id, data.title, data.content, data.author, data.imageUrl, data.date);
+      return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
     })
   }
 
@@ -48,7 +48,7 @@ class Article {
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();
-      return new Article(doc.id, data.title, data.content, data.author, data.imageUrl, data.date);
+      return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
     })
   }
 
@@ -61,13 +61,13 @@ class Article {
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();
-      return new Article(doc.id, data.title, data.content, data.author, data.imageUrl, data.date);
+      return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
     })
   }
 
   static updateById = async (article) => {
-    const { id, title, content, author, imageUrl } = article;
-    await db.collection("articles").doc(id).update({ title, content, author, imageUrl });
+    const { id, title, content, author, image, date } = article;
+    await db.collection("articles").doc(id).update({ title, content, author, image, date });
   }
 
   static deleteById = async (id) => {

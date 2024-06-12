@@ -63,7 +63,7 @@ const create = async (req, res) => {
       const pickup = new Pickup(id, photoUrl, weight, lat, lon, description, "", "", status);
       await Pickup.save(pickup);
 
-      return res.status(200).json({
+      return res.status(201).json({
         error: false,
         message: "Successfully create pickup!",
         createResult: pickup

@@ -66,10 +66,6 @@ class User {
   static changePassword = async (id, password) => {
     await db.collection("users").doc(id).update({ password });
   }
-
-  static verified = async (id) => {
-    await db.collection('users').doc(id).update({ verified: true });
-  }
 }
 
 module.exports = User;

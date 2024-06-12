@@ -126,7 +126,7 @@ const create = async (req, res) => {
       const article = new Article(id, title, content, author, imageUrl, date);
       await Article.save(article);
 
-      return res.status(200).json({
+      return res.status(201).json({
         error: false,
         message: "Successfully create article!",
         createResult: article

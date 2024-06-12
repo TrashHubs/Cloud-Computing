@@ -1,3 +1,4 @@
+const { sendVerifyEmail, sendResetPasswordEmail } = require('../services/emailService');
 const { admin } = require("../config/firebaseConfig");
 const User = require("../models/userModel");
 const validator = require('validator');
@@ -67,6 +68,9 @@ const register = async (req, res) => {
 
       const user = new User(id, name, email, hashedPassword, phone, "", mitra, roles);
       await User.save(user);
+
+      const link = await admin.auth().generateEmailVerificationLink(email);
+      sendVerifyEmail(email, link);
 
       return res.status(201).json({
         error: false,
@@ -283,34 +287,41 @@ const changePassword = async (req, res) => {
   }
 }
 
-const verify = async (req, res) => {
-  const { email } = req.params;
+const resetPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (validator.isEmpty(email) || !validator.isEmail(email)) {
+    return res.status(400).json({
+      error: true,
+      message: "Valid email is required!"
+    })
+  }
 
   try {
-    const user = await admin.auth().getUserByEmail(email);
+    const user = await User.findByEmail(email);
 
-    if (!user.emailVerified) {
-      const link = await admin.auth().generateEmailVerificationLink(email);
+    if (!user) {
       return res.status(400).json({
         error: true,
-        message: "Please verify your email!",
-        verifyLink: link
+        message: "Email is not registered!"
       })
 
     } else {
-      await User.verified(user.uid)
+      const link = await admin.auth().generatePasswordResetLink(email);
+      sendResetPasswordEmail(email, link);
+
       return res.status(200).json({
         error: false,
-        message: "Successfully verified email!"
+        message: "Reset password email sent!"
       })
     }
 
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to verify email. Please try again later!"
+      message: "Failed to send reset password!"
     })
   }
 }
 
-module.exports = { register, login, profile, update, changePassword, verify };
+module.exports = { register, login, profile, update, changePassword, resetPassword };

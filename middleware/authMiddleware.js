@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { db } = require('../config/firebaseConfig');
+const { admin, db } = require('../config/firebaseConfig');
 
 const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -7,7 +7,7 @@ const verifyToken = async (req, res, next) => {
   if (!token) {
     return res.status(401).json({
       error: true,
-      message: "Not Authorized",
+      message: "Not Authorized"
     })
   }
 
@@ -21,15 +21,25 @@ const verifyToken = async (req, res, next) => {
     if (doc.exists && data.token !== token) {
       return res.status(401).json({
         error: true,
-        message: "Unauthorized!",
+        message: "Unauthorized!"
       })
+    } else if (doc.exists && !data.verified) {
+      const user = await admin.auth().getUserByEmail(decodedToken.email);
+      if (user.emailVerified) {
+        await db.collection('users').doc(decodedToken.uid).update({ verified: true });
+      } else {
+        return res.status(401).json({
+          error: true,
+          message: "Please verify your email first!"
+        })
+      }
     }
 
     next();
   } catch (error) {
     return res.status(401).json({
       error: true,
-      message: "Not Authorized!",
+      message: "Not Authorized!"
     })
   }
 }

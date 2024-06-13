@@ -13,8 +13,8 @@ class User {
   }
 
   static save = async (user) => {
-    const { id, name, email, password, phone, address, mitra, roles, verified, token } = user;
-    await db.collection("users").doc(id).set({ name, email, password, phone, address, mitra, roles, token, verified: false, token: null });
+    const { id, name, email, password, phone, address, mitra, roles } = user;
+    await db.collection("users").doc(id).set({ name, email, password, phone, address, mitra, roles, verified: false, token: null });
   }
 
   static findById = async (id) => {

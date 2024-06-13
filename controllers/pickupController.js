@@ -1,8 +1,11 @@
 const { bucket } = require("../config/firebaseConfig");
 
 const Pickup = require("../models/pickupModel");
+const User = require("../models/userModel");
 const validator = require('validator');
+
 const { v4: uuidv4 } = require("uuid");
+const { format } = require('date-fns');
 
 const multer = require('multer');
 const storage = multer({
@@ -19,10 +22,14 @@ const create = async (req, res) => {
       })
     }
 
+    const userId = req.user.uid;
     const { weight, lat, lon, description } = req.body;
+
     const id = uuidv4();
     const photo = req.file;
-    let status = "pending";
+
+    const status = "pending";
+    const notif = "unread";
 
     const fileName = `${photo.originalname}-${Date.now()}`;
     const folderName = 'pickups';
@@ -60,14 +67,24 @@ const create = async (req, res) => {
       await file.makePublic();
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
 
-      const pickup = new Pickup(id, photoUrl, weight, lat, lon, description, "", "", status);
-      await Pickup.save(pickup);
+      const user = await User.findById(userId);
 
-      return res.status(201).json({
-        error: false,
-        message: "Successfully create pickup!",
-        createResult: pickup
-      })
+      if (user.roles == "user") {
+        const pickup = new Pickup(id, photoUrl, weight, lat, lon, description, "", "", status, notif, notif, userId, "");
+        await Pickup.save(pickup);
+
+        return res.status(201).json({
+          error: false,
+          message: "Successfully create pickup!",
+          createResult: pickup
+        })
+
+      } else {
+        return res.status(401).json({
+          error: true,
+          message: "You are not allowed to create pickup!"
+        })
+      }
 
     } catch (error) {
       return res.status(400).json({
@@ -78,25 +95,89 @@ const create = async (req, res) => {
   })
 }
 
-const getById = async (req, res) => {
-  const { id } = req.params;
-
+const getAll = async (req, res) => {
+  const userId = req.user.uid;
   try {
-    const pickup = await Pickup.findById(id);
-
-    if (!pickup) {
-      return res.status(404).json({
-        error: true,
-        message: "Pickup not found!"
-      })
-
-    } else {
+    const user = await User.findById(userId);
+    if (user.roles == "user") {
+      const pickup = await Pickup.findAllByEachUser(userId);
       return res.status(200).json({
         error: false,
         message: "Successfully get pickup!",
         pickupResult: pickup
       })
+
+    } else if (user.roles == "mitra") {
+      const pickup = await Pickup.findAllByEachMitra(userId);
+      return res.status(200).json({
+        error: true,
+        message: "Successfully get pickup!",
+        pickupResult: pickup
+      })
+    } else {
+      return res.status(401).json({
+        error: true,
+        message: "You do not have permission to perform this action!"
+      })
     }
+
+  } catch (error) {
+    return res.status(404).json({
+      error: true,
+      message: "Pickup not found!"
+    })
+  }
+}
+
+const getById = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.uid;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (user.roles == "user") {
+      const pickup = await Pickup.findById(id, userId, "");
+      if (!pickup) {
+        return res.status(404).json({
+          error: true,
+          message: "Pickup not found!"
+        })
+
+      } else {
+        await Pickup.markAs(id, "read", pickup.notifMitra);
+
+        const newest = await Pickup.findById(id, userId, "");
+        return res.status(200).json({
+          error: false,
+          message: "Successfully get pickup!",
+          pickupResult: newest
+        })
+      }
+
+    } else if (user.roles == "mitra") {
+      const pickup = await Pickup.findById(id, "", userId);
+      if (!pickup) {
+        return res.status(404).json({
+          error: true,
+          message: "Pickup not found!"
+        })
+
+      } else {
+        return res.status(200).json({
+          error: false,
+          message: "Successfully get pickup!",
+          pickupResult: pickup
+        })
+      }
+
+    } else {
+      return res.status(401).json({
+        error: true,
+        message: "You do not have permission to perform this action!"
+      })
+    }
+    
 
   } catch (error) {
     return res.status(400).json({
@@ -108,8 +189,10 @@ const getById = async (req, res) => {
 
 const accept = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user.uid;
+
   const { pickup_date, pickup_time } = req.body;
-  let status = "accepted";
+  const status = "accepted";
 
   if (validator.isEmpty(pickup_date) || !validator.isDate(pickup_date)) {
     return res.status(400).json({
@@ -124,19 +207,37 @@ const accept = async (req, res) => {
   }
 
   try {
-    const exist = await Pickup.findById(id);
-    if (!exist) {
-      return res.status(404).json({
-        error: true,
-        message: "Pickup not found!"
-      })
+    const user = await User.findById(userId);
+
+    if (user.roles == "mitra") {
+      const exist = await Pickup.findById(id, "", userId);
+      if (!exist) {
+        return res.status(404).json({
+          error: true,
+          message: "Pickup not found!"
+        })
+
+      } else if (exist.status == "accepted" || exist.status == "rejected") {
+        return res.status(400).json({
+          error: true,
+          message: "You cannot perform this action! Pickup is already " + exist.status
+        })
+
+      } else {
+        const pickup = new Pickup(id, "", "", "", "", "", pickup_date, pickup_time, status, "", "", "", userId);
+        await Pickup.status(pickup);
+        await Pickup.markAs(id, "unread", "read");
+
+        return res.status(200).json({
+          error: false,
+          message: "Successfully accept pickup!"
+        })
+      }
 
     } else {
-      const pickup = new Pickup(id, "", "", "", "", "", pickup_date, pickup_time, status);
-      await Pickup.accept(pickup);
-      return res.status(200).json({
-        error: false,
-        message: "Successfully accept pickup!"
+      return res.status(401).json({
+        error: true,
+        message: "You do not have permission to perform this action!"
       })
     }
 
@@ -150,21 +251,58 @@ const accept = async (req, res) => {
 
 const reject = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user.uid;
+
+  const now = new Date();
+  const pickup_date = format(now, 'yyyy-MM-dd');
+  const pickup_time = format(now, 'HH:mm:ss');
+  const status = "rejected";
+
+  if (validator.isEmpty(pickup_date) || !validator.isDate(pickup_date)) {
+    return res.status(400).json({
+      error: true,
+      message: "Valid date is required!"
+    })
+  } else if (validator.isEmpty(pickup_time)) {
+    return res.status(400).json({
+      error: true,
+      message: "Time is required!"
+    })
+  }
 
   try {
-    const exist = await Pickup.findById(id);
+    const user = await User.findById(userId);
 
-    if (!exist) {
-      return res.status(404).json({
-        error: true,
-        message: "Pickup not found!"
-      })
+    if (user.roles == "mitra") {
+      const exist = await Pickup.findById(id, "", userId);
+
+      if (!exist) {
+        return res.status(404).json({
+          error: true,
+          message: "Pickup not found!"
+        })
+
+      } else if (exist.status == "accepted" || exist.status == "rejected") {
+        return res.status(400).json({
+          error: true,
+          message: "You cannot perform this action! Pickup is already " + exist.status
+        })
+
+      } else {
+        const pickup = new Pickup(id, "", "", "", "", "", pickup_date, pickup_time, status, "", "", "", userId);
+        await Pickup.status(pickup);
+        await Pickup.markAs(id, "unread", "read");
+
+        return res.status(200).json({
+          error: false,
+          message: "Successfully reject pickup!"
+        })
+      }
 
     } else {
-      await Pickup.reject(id);
-      return res.status(200).json({
-        error: false,
-        message: "Successfully reject pickup!"
+      return res.status(401).json({
+        error: true,
+        message: "You do not have permission to perform this action!"
       })
     }
 
@@ -178,34 +316,46 @@ const reject = async (req, res) => {
 
 const deleteById = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user.uid;
 
   try {
-    const exist = await Pickup.findById(id);
+    const user = await User.findById(userId);
 
-    if (!exist) {
-      return res.status(404).json({
-        error: true,
-        message: "Pickup not found!"
-      })
+    if (user.roles == "user") {
+      const exist = await Pickup.findById(id, userId, "");
+
+      if (!exist) {
+        return res.status(404).json({
+          error: true,
+          message: "Pickup not found!"
+        })
+
+      } else {
+        const oldFilePath = exist.photo.split(`https://storage.googleapis.com/${bucket.name}/`)[1];
+        const oldFile = bucket.file(oldFilePath);
+        
+        await Pickup.deleteById(id, userId);
+        await oldFile.delete();
+
+        return res.status(200).json({
+          error: false,
+          message: "Successfully delete pickup!"
+        })
+      }
 
     } else {
-      const oldFilePath = exist.photo.split(`https://storage.googleapis.com/${bucket.name}/`)[1];
-      const oldFile = bucket.file(oldFilePath);
-      await oldFile.delete();
-
-      await Pickup.deleteById(id);
-      return res.status(200).json({
-        error: false,
-        message: "Successfully delete pickup!"
+      return res.status(401).json({
+        error: true,
+        message: "You do not have permission to perform this action!"
       })
     }
 
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to delete pickup!"
+      message: error.message
     })
   }
 }
 
-module.exports = { create, getById, accept, reject, deleteById };
+module.exports = { create, getAll, getById, accept, reject, deleteById };

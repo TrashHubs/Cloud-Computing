@@ -3,10 +3,8 @@ const InputError = require('../exception/InputError');
 
 async function predict(model, imageBuffer) {
   try {
-    // Decode and preprocess the image
     const tensor = tfjs.node.decodeImage(imageBuffer).resizeNearestNeighbor([180, 180]).expandDims().toFloat();
 
-    // Make prediction
     const prediction = model.predict(tensor);
     const score = await prediction.data();
     const confidenceScore = Math.max(...score) * 100;
@@ -44,7 +42,15 @@ async function predict(model, imageBuffer) {
 
     return { confidenceScore, label, recyclePercentage, suggestion, explanation };
   } catch (error) {
-    throw new InputError(`Terjadi kesalahan dalam proses prediksi gunakan foto lain`);
+    let errorMessage;
+
+    if (error.message.includes('expected conv2d_input to have shape')) {
+      errorMessage = 'The image format is not appropriate, please use an image with the correct formatting';
+    } else {
+      errorMessage = `An error occurred in the prediction process: ${error.message}`;
+    }
+
+    throw new InputError(errorMessage, 400);
   }
 }
 

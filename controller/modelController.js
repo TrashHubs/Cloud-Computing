@@ -3,18 +3,18 @@ const upload = multer();
 
 const predict = require('../service/inferenceService');
 const crypto = require('crypto');
+const storeModel = require('../models/storeModel');
 const InputError = require('../exception/InputError');
-const { db, bucket } = require('../config/firebaseConfig');
+const { bucket } = require('../config/firebaseConfig');
 
 async function predictModel(req, res, next) {
   try {
     if (!req.file || !req.file.buffer) {
-      throw new InputError('No image file provided', 400);
+      throw new InputError('No image file provided ', 400);
     }
 
     const photo = req.file;
 
-    // Check file size
     if (photo.size > 1000000) {
       throw new InputError('File size exceeds 1MB', 413);
     }
@@ -22,10 +22,8 @@ async function predictModel(req, res, next) {
     const { model } = req.app.locals;
     const imageBuffer = photo.buffer;
 
-    // Run the prediction
-    const { confidenceScore, label, recyclePercentage, suggestion, explanation } = await predict(model, imageBuffer);
+    const { label, recyclePercentage, suggestion, explanation } = await predict(model, imageBuffer);
 
-    // Upload image to Cloud Storage only after successful prediction
     const fileName = `${photo.originalname}-${Date.now()}`;
     const folderName = 'predictions';
     const filePath = `${folderName}/${fileName}`;
@@ -48,26 +46,55 @@ async function predictModel(req, res, next) {
       explanation: explanation,
       imageUrl: imageUrl,
       recyclePercentage: recyclePercentage.toFixed(2),
-      confidenceScore: confidenceScore.toFixed(2),
       createdAt: createdAt,
     };
 
-    // Save metadata to Firestore
-    await db.collection('predictions').doc(id).set(data);
+    await storeModel.save(data);
 
     res.status(201).json({
       status: 'success',
       message: 'Model is predicted successfully',
-      data,
+      predictionsResult: data,
     });
   } catch (error) {
-    res.status(400).json({
-      status: 'fail',
-      message: `Terjadi kesalahan dalam melakukan prediksi gunakan foto lain`,
+    next(new InputError(`An error occurred in the prediction process: ${error.message}`, error.statusCode || 400));
+  }
+}
+
+async function getAllPredictions(req, res, next) {
+  try {
+    await storeModel.getAll();
+    const predictions = await storeModel.getAll();
+    res.status(200).json({
+      status: 'success',
+      message: 'Predictions fetched successfully',
+      predictionsResult: predictions,
     });
+  } catch (error) {
+    next(new InputError(`data not found`, error.statusCode || 400));
+  }
+}
+
+async function getPredictionsId(req, res, next) {
+  const { id } = req.params;
+  try {
+    const predictions = await storeModel.getById(id);
+    if (!predictions) {
+      next(new InputError(`data not found`, 404));
+    } else {
+      res.status(200).json({
+        status: 'success',
+        message: 'Predictions fetched successfully',
+        predictionsResult: predictions,
+      });
+    }
+  } catch (error) {
+    next(new InputError(`Failed to get prediction ${error.message}`, error.statusCode || 400));
   }
 }
 
 module.exports = {
   predictModel,
+  getAllPredictions,
+  getPredictionsId,
 };

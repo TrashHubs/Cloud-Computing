@@ -22,10 +22,12 @@ class Pickup {
     await db.collection("pickups").doc(id).set({ photo, weight, lat, lon, description, pickup_date, pickup_time, status, notifUser, notifMitra, userId, mitraId });
   }
 
-  static findAllByEachUser = async (userId) => {
-    const pickup = await db.collection("pickups")
-      .where("userId", "==", userId)
-      .get();
+  static findAllByUser = async (userId) => {
+    const pickup = await db.collection("pickups").where("userId", "==", userId).get();
+
+    if (pickup.empty) {
+      return null;
+    }
 
     const pickups = pickup.docs.map((doc) => {
       const data = doc.data();
@@ -40,15 +42,18 @@ class Pickup {
     return pickups.filter((pickup) => pickup !== null);
   }
 
-  static findAllByEachMitra = async (mitraId) => {
+  static findAllByMitra = async (mitraId) => {
     const pickup = await db.collection("pickups").get();
+
+    if (pickup.empty) {
+      return null;
+    }
 
     const pickups = pickup.docs.map((doc) => {
       const data = doc.data();
 
       if (!pickup.empty && !data.mitraId || !pickup.empty && mitraId == data.mitraId) {
         return new Pickup(doc.id, data.photo, data.weight, data.lat, data.lon, data.description, data.pickup_date, data.pickup_time, data.status, data.notifUser, data.notifMitra, data.userId, data.mitraId);
-
       } else {
         return null;
       }
@@ -57,11 +62,22 @@ class Pickup {
     return pickups.filter((pickup) => pickup !== null);
   }
 
-  static findById = async (id, userId, mitraId) => {
+  static findIdByUser = async (id, userId) => {
     const pickup = await db.collection("pickups").doc(id).get();
     const data = pickup.data();
 
-    if (pickup.exists && userId == data.userId || pickup.exists && !data.mitraId || pickup.exists && mitraId == data.mitraId) {
+    if (pickup.exists && userId == data.userId) {
+      return new Pickup(pickup.id, data.photo, data.weight, data.lat, data.lon, data.description, data.pickup_date, data.pickup_time, data.status, data.notifUser, data.notifMitra, data.userId, data.mitraId);
+    } else {
+      return null;
+    }
+  }
+
+  static findIdByMitra = async (id, mitraId) => {
+    const pickup = await db.collection("pickups").doc(id).get();
+    const data = pickup.data();
+
+    if (pickup.exists && !data.mitraId || pickup.exists && mitraId == data.mitraId) {
       return new Pickup(pickup.id, data.photo, data.weight, data.lat, data.lon, data.description, data.pickup_date, data.pickup_time, data.status, data.notifUser, data.notifMitra, data.userId, data.mitraId);
     } else {
       return null;

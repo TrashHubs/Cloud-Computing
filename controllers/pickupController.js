@@ -28,15 +28,6 @@ const create = async (req, res) => {
     const id = uuidv4();
     const photo = req.file;
 
-    const status = "pending";
-    const notif = "unread";
-
-    const fileName = `${photo.originalname}-${Date.now()}`;
-    const folderName = 'pickups';
-
-    const filePath = `${folderName}/${fileName}`;
-    const file = bucket.file(filePath);
-
     if (validator.isEmpty(weight)) {
       return res.status(400).json({
         error: true,
@@ -57,7 +48,21 @@ const create = async (req, res) => {
         error: true,
         message: "Description is required!"
       })
+    } else if (!photo) {
+      return res.status(400).json({
+        error: true,
+        message: "Photo is required!"
+      })
     }
+
+    const status = "pending";
+    const notif = "unread";
+
+    const fileName = `${photo.originalname}-${Date.now()}`;
+    const folderName = 'pickups';
+
+    const filePath = `${folderName}/${fileName}`;
+    const file = bucket.file(filePath);
 
     try {
       await file.save(photo.buffer, {
@@ -67,7 +72,7 @@ const create = async (req, res) => {
       await file.makePublic();
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
 
-      const user = await User.findById(userId);
+      const user = await User.findUserById(userId);
 
       if (user.roles == "user") {
         const pickup = new Pickup(id, photoUrl, weight, lat, lon, description, "", "", status, notif, notif, userId, "");
@@ -97,10 +102,12 @@ const create = async (req, res) => {
 
 const getAll = async (req, res) => {
   const userId = req.user.uid;
+
   try {
-    const user = await User.findById(userId);
+    const user = await User.findUserById(userId);
+
     if (user.roles == "user") {
-      const pickup = await Pickup.findAllByEachUser(userId);
+      const pickup = await Pickup.findAllByUser(userId);
       return res.status(200).json({
         error: false,
         message: "Successfully get pickup!",
@@ -108,12 +115,13 @@ const getAll = async (req, res) => {
       })
 
     } else if (user.roles == "mitra") {
-      const pickup = await Pickup.findAllByEachMitra(userId);
+      const pickup = await Pickup.findAllByMitra(userId);
       return res.status(200).json({
-        error: true,
+        error: false,
         message: "Successfully get pickup!",
         pickupResult: pickup
       })
+
     } else {
       return res.status(401).json({
         error: true,
@@ -134,10 +142,10 @@ const getById = async (req, res) => {
   const userId = req.user.uid;
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findUserById(userId);
 
     if (user.roles == "user") {
-      const pickup = await Pickup.findById(id, userId, "");
+      const pickup = await Pickup.findIdByUser(id, userId);
       if (!pickup) {
         return res.status(404).json({
           error: true,
@@ -147,7 +155,7 @@ const getById = async (req, res) => {
       } else {
         await Pickup.markAs(id, "read", pickup.notifMitra);
 
-        const newest = await Pickup.findById(id, userId, "");
+        const newest = await Pickup.findIdByUser(id, userId);
         return res.status(200).json({
           error: false,
           message: "Successfully get pickup!",
@@ -156,7 +164,7 @@ const getById = async (req, res) => {
       }
 
     } else if (user.roles == "mitra") {
-      const pickup = await Pickup.findById(id, "", userId);
+      const pickup = await Pickup.findIdByMitra(id, userId);
       if (!pickup) {
         return res.status(404).json({
           error: true,
@@ -207,10 +215,11 @@ const accept = async (req, res) => {
   }
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findUserById(userId);
 
     if (user.roles == "mitra") {
-      const exist = await Pickup.findById(id, "", userId);
+      const exist = await Pickup.findIdByMitra(id, userId);
+
       if (!exist) {
         return res.status(404).json({
           error: true,
@@ -271,10 +280,10 @@ const reject = async (req, res) => {
   }
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findUserById(userId);
 
     if (user.roles == "mitra") {
-      const exist = await Pickup.findById(id, "", userId);
+      const exist = await Pickup.findIdByMitra(id, userId);
 
       if (!exist) {
         return res.status(404).json({
@@ -319,15 +328,21 @@ const deleteById = async (req, res) => {
   const userId = req.user.uid;
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findUserById(userId);
 
     if (user.roles == "user") {
-      const exist = await Pickup.findById(id, userId, "");
+      const exist = await Pickup.findIdByUser(id, userId);
 
       if (!exist) {
         return res.status(404).json({
           error: true,
-          message: "Pickup not found!"
+          message: "Pickup not found!",
+        })
+
+      } else if (exist.status == "accepted" || exist.status == "rejected") {
+        return res.status(400).json({
+          error: true,
+          message: "You cannot perform this action! Pickup is already " + exist.status
         })
 
       } else {
@@ -353,7 +368,7 @@ const deleteById = async (req, res) => {
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: error.message
+      message: "Failed to delete pickup!"
     })
   }
 }

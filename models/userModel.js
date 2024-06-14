@@ -1,7 +1,7 @@
 const { db } = require("../config/firebaseConfig");
 
 class User {
-  constructor(id, name, email, password, phone, address, mitra, roles) {
+  constructor(id, name, email, password, phone, address, mitra, roles, verified, token) {
     this.id = id;
     this.name = name;
     this.email = email;
@@ -10,14 +10,16 @@ class User {
     this.address = address;
     this.mitra = mitra;
     this.roles = roles;
+    this.verified = verified;
+    this.token = token;
   }
 
-  static save = async (user) => {
+  static saveUser = async (user) => {
     const { id, name, email, password, phone, address, mitra, roles } = user;
     await db.collection("users").doc(id).set({ name, email, password, phone, address, mitra, roles, verified: false, token: null });
   }
 
-  static findById = async (id) => {
+  static findUserById = async (id) => {
     const doc = await db.collection("users").doc(id).get();
 
     if (doc.exists) {
@@ -28,7 +30,7 @@ class User {
     return null;
   }
 
-  static findByEmail = async (email) => {
+  static findUserByEmail = async (email) => {
     const snapshot = await db.collection("users").where("email", "==", email).get();
 
     if (snapshot.empty) {
@@ -41,7 +43,7 @@ class User {
     return new User(doc.id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles, data.verified, data.token);
   }
 
-  static findByPhone = async (phone) => {
+  static findUserByPhone = async (phone) => {
     const snapshot = await db.collection("users").where("phone", "==", phone).get();
 
     if (snapshot.empty) {
@@ -58,13 +60,17 @@ class User {
     await db.collection("users").doc(id).update({ token });
   }
 
-  static update = async (user) => {
+  static updateUser = async (user) => {
     const { id, name, address, mitra } = user;
     await db.collection("users").doc(id).update({ name, address, mitra });
   }
 
   static changePassword = async (id, password) => {
     await db.collection("users").doc(id).update({ password });
+  }
+
+  static logoutUser = async (id) => {
+    await db.collection("users").doc(id).update({ token: null });
   }
 }
 

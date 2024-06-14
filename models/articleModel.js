@@ -10,12 +10,12 @@ class Article {
     this.date = date;
   }
 
-  static save = async (article) => {
+  static saveArticle = async (article) => {
     const { id, title, content, author, image, date } = article;
     await db.collection("articles").doc(id).set({ title, content, author, image, date });
   }
 
-  static findById = async (id) => {
+  static findArticleById = async (id) => {
     const doc = await db.collection("articles").doc(id).get();
 
     if (doc.empty) {
@@ -26,51 +26,57 @@ class Article {
     return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
   }
 
-  static findAll = async () => {
+  static findAllArticle = async () => {
     const snapshot = await db.collection("articles").get();
 
     if (snapshot.empty) {
       return null;
     }
 
-    return snapshot.docs.map((doc) => {
+    const data = snapshot.docs.map((doc) => {
       const data = doc.data();
       return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
     })
+
+    return data.filter((article) => article !== null);
   }
 
-  static findNews = async (limit) => {
+  static findArticleNews = async (limit) => {
     const snapshot = await db.collection("articles").orderBy("date", "desc").limit(limit).get();
 
     if (snapshot.empty) {
       return null;
     }
 
-    return snapshot.docs.map((doc) => {
+    const data = snapshot.docs.map((doc) => {
       const data = doc.data();
       return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
     })
+
+    return data.filter((article) => article !== null);
   }
 
-  static findByTitle = async (title) => {
+  static findArticleByTitle = async (title) => {
     const snapshot = await db.collection("articles").where("title", ">=", title).where("title", "<=", title + '\uf8ff').get();
 
     if (snapshot.empty) {
       return null;
     }
 
-    return snapshot.docs.map((doc) => {
+    const data = snapshot.docs.map((doc) => {
       const data = doc.data();
       return new Article(doc.id, data.title, data.content, data.author, data.image, data.date);
     })
+
+    return data.filter((article) => article !== null);
   }
 
-  static updateById = async (article) => {
+  static updateArticleById = async (article) => {
     const { id, title, content, author, image, date } = article;
     await db.collection("articles").doc(id).update({ title, content, author, image, date });
   }
 
-  static deleteById = async (id) => {
+  static deleteArticleById = async (id) => {
     await db.collection("articles").doc(id).delete();
   }
 }

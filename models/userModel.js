@@ -19,7 +19,7 @@ class User {
     await db.collection("users").doc(id).set({ name, email, password, phone, address, mitra, roles, verified: false, token: null });
   }
 
-  static findUserById = async (id) => {
+  static findById = async (id) => {
     const doc = await db.collection("users").doc(id).get();
 
     if (doc.exists) {
@@ -30,7 +30,7 @@ class User {
     return null;
   }
 
-  static findUserByEmail = async (email) => {
+  static findByEmail = async (email) => {
     const snapshot = await db.collection("users").where("email", "==", email).get();
 
     if (snapshot.empty) {
@@ -43,7 +43,7 @@ class User {
     return new User(doc.id, data.name, data.email, data.password, data.phone, data.address, data.mitra, data.roles, data.verified, data.token);
   }
 
-  static findUserByPhone = async (phone) => {
+  static findByPhone = async (phone) => {
     const snapshot = await db.collection("users").where("phone", "==", phone).get();
 
     if (snapshot.empty) {

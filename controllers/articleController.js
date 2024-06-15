@@ -12,7 +12,7 @@ const storage = multer({
 
 const getAll = async (req, res) => {
   try {
-    const article = await Article.findAllArticle();
+    const article = await Article.findAll();
     return res.status(200).json({
       error: false,
       message: "Successfully get articles!",
@@ -32,7 +32,7 @@ const getNews = async (req, res) => {
   limit = parseInt(limit);
 
   try {
-    const article = await Article.findArticleNews(limit);
+    const article = await Article.findNews(limit);
     return res.status(200).json({
       error: false,
       message: "Successfully get news!",
@@ -50,7 +50,7 @@ const getNews = async (req, res) => {
 const getById = async (req, res) => {
   const { id } = req.params;
   try {
-    const article = await Article.findArticleById(id);
+    const article = await Article.findById(id);
 
     if (!article) {
       return res.status(404).json({
@@ -111,6 +111,11 @@ const create = async (req, res) => {
       return res.status(400).json({
         error: true,
         message: "Image is required!"
+      })
+    } else if (image.size > 1e6) {
+      return res.status(413).json({
+        error: true,
+        message: "Image size must not exceed 1 MB!"
       })
     }
 
@@ -184,6 +189,11 @@ const update = async (req, res) => {
         error: true,
         message: "Image is required!"
       })
+    } else if (image.size > 1e6) {
+      return res.status(413).json({
+        error: true,
+        message: "Image size must not exceed 1 MB!"
+      })
     }
 
     const fileName = `${image.originalname}-${Date.now()}`;
@@ -193,7 +203,7 @@ const update = async (req, res) => {
     const file = bucket.file(filePath);
 
     try {
-      const exist = await Article.findArticleById(id);
+      const exist = await Article.findById(id);
       if (!exist) {
         return res.status(404).json({
           error: true,
@@ -212,7 +222,7 @@ const update = async (req, res) => {
         const imageUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
 
         const article = new Article(id, title, content, author, imageUrl, date);
-        await Article.updateArticleById(article);
+        await Article.updateArticle(article);
 
         await oldFile.delete();
 
@@ -236,7 +246,7 @@ const deleteById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const exist = await Article.findArticleById(id);
+    const exist = await Article.findById(id);
     if (!exist) {
       return res.status(404).json({
         error: true,
@@ -247,7 +257,7 @@ const deleteById = async (req, res) => {
       const oldFilePath = exist.image.split(`https://storage.googleapis.com/${bucket.name}/`)[1];
       const oldFile = bucket.file(oldFilePath);
       
-      await Article.deleteArticleById(id);
+      await Article.deleteArticle(id);
       await oldFile.delete();
 
       return res.status(200).json({
@@ -268,7 +278,7 @@ const search = async (req, res) => {
   const { title } = req.params;
 
   try {
-    const article = await Article.findArticleByTitle(title);
+    const article = await Article.findByTitle(title);
 
     if (!article) {
       return res.status(404).json({

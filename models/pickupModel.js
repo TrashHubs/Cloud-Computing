@@ -17,22 +17,22 @@ class Pickup {
     this.mitraId = mitraId;
   }
 
-  static save = async (pickup) => {
+  static savePickup = async (pickup) => {
     const { id, photo, weight, lat, lon, description, pickup_date, pickup_time, status, notifUser, notifMitra, userId, mitraId } = pickup;
     await db.collection("pickups").doc(id).set({ photo, weight, lat, lon, description, pickup_date, pickup_time, status, notifUser, notifMitra, userId, mitraId });
   }
 
   static findAllByUser = async (userId) => {
-    const pickup = await db.collection("pickups").where("userId", "==", userId).get();
+    const snapshot = await db.collection("pickups").where("userId", "==", userId).get();
 
-    if (pickup.empty) {
+    if (snapshot.empty) {
       return null;
     }
 
-    const pickups = pickup.docs.map((doc) => {
+    const pickups = snapshot.docs.map((doc) => {
       const data = doc.data();
 
-      if (!pickup.empty && userId == data.userId) {
+      if (!snapshot.empty && userId == data.userId) {
         return new Pickup(doc.id, data.photo, data.weight, data.lat, data.lon, data.description, data.pickup_date, data.pickup_time, data.status, data.notifUser, data.notifMitra, data.userId, data.mitraId);
       } else {
         return null;
@@ -43,16 +43,16 @@ class Pickup {
   }
 
   static findAllByMitra = async (mitraId) => {
-    const pickup = await db.collection("pickups").get();
+    const snapshot = await db.collection("pickups").get();
 
-    if (pickup.empty) {
+    if (snapshot.empty) {
       return null;
     }
 
-    const pickups = pickup.docs.map((doc) => {
+    const pickups = snapshot.docs.map((doc) => {
       const data = doc.data();
 
-      if (!pickup.empty && !data.mitraId || !pickup.empty && mitraId == data.mitraId) {
+      if (!snapshot.empty && !data.mitraId || !snapshot.empty && mitraId == data.mitraId) {
         return new Pickup(doc.id, data.photo, data.weight, data.lat, data.lon, data.description, data.pickup_date, data.pickup_time, data.status, data.notifUser, data.notifMitra, data.userId, data.mitraId);
       } else {
         return null;
@@ -84,7 +84,7 @@ class Pickup {
     }
   }
 
-  static status = async (pickup) => {
+  static statusPickup = async (pickup) => {
     const { id, pickup_date, pickup_time, status, mitraId } = pickup;
     await db.collection("pickups").doc(id).update({ pickup_date, pickup_time, status, mitraId });
   }
@@ -93,7 +93,7 @@ class Pickup {
     await db.collection("pickups").doc(id).update({ notifUser, notifMitra });
   }
 
-  static deleteById = async (id, userId) => {
+  static deletePickup = async (id, userId) => {
     const pickup = db.collection("pickups").doc(id);
     const doc = await pickup.get();
 

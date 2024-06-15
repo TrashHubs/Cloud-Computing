@@ -53,6 +53,11 @@ const create = async (req, res) => {
         error: true,
         message: "Photo is required!"
       })
+    } else if (photo.size > 1e6) {
+      return res.status(413).json({
+        error: true,
+        message: "Photo size must not exceed 1 MB!"
+      })
     }
 
     const status = "pending";
@@ -65,18 +70,18 @@ const create = async (req, res) => {
     const file = bucket.file(filePath);
 
     try {
-      await file.save(photo.buffer, {
-        metadata: { contentType: photo.mimetype }
-      });
-
-      await file.makePublic();
-      const photoUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
-
-      const user = await User.findUserById(userId);
+      const user = await User.findById(userId);
 
       if (user.roles == "user") {
+        await file.save(photo.buffer, {
+          metadata: { contentType: photo.mimetype }
+        });
+  
+        await file.makePublic();
+        const photoUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
+
         const pickup = new Pickup(id, photoUrl, weight, lat, lon, description, "", "", status, notif, notif, userId, "");
-        await Pickup.save(pickup);
+        await Pickup.savePickup(pickup);
 
         return res.status(201).json({
           error: false,
@@ -104,7 +109,7 @@ const getAll = async (req, res) => {
   const userId = req.user.uid;
 
   try {
-    const user = await User.findUserById(userId);
+    const user = await User.findById(userId);
 
     if (user.roles == "user") {
       const pickup = await Pickup.findAllByUser(userId);
@@ -142,7 +147,7 @@ const getById = async (req, res) => {
   const userId = req.user.uid;
 
   try {
-    const user = await User.findUserById(userId);
+    const user = await User.findById(userId);
 
     if (user.roles == "user") {
       const pickup = await Pickup.findIdByUser(id, userId);
@@ -215,7 +220,7 @@ const accept = async (req, res) => {
   }
 
   try {
-    const user = await User.findUserById(userId);
+    const user = await User.findById(userId);
 
     if (user.roles == "mitra") {
       const exist = await Pickup.findIdByMitra(id, userId);
@@ -234,7 +239,7 @@ const accept = async (req, res) => {
 
       } else {
         const pickup = new Pickup(id, "", "", "", "", "", pickup_date, pickup_time, status, "", "", "", userId);
-        await Pickup.status(pickup);
+        await Pickup.statusPickup(pickup);
         await Pickup.markAs(id, "unread", "read");
 
         return res.status(200).json({
@@ -280,7 +285,7 @@ const reject = async (req, res) => {
   }
 
   try {
-    const user = await User.findUserById(userId);
+    const user = await User.findById(userId);
 
     if (user.roles == "mitra") {
       const exist = await Pickup.findIdByMitra(id, userId);
@@ -299,7 +304,7 @@ const reject = async (req, res) => {
 
       } else {
         const pickup = new Pickup(id, "", "", "", "", "", pickup_date, pickup_time, status, "", "", "", userId);
-        await Pickup.status(pickup);
+        await Pickup.statusPickup(pickup);
         await Pickup.markAs(id, "unread", "read");
 
         return res.status(200).json({
@@ -328,7 +333,7 @@ const deleteById = async (req, res) => {
   const userId = req.user.uid;
 
   try {
-    const user = await User.findUserById(userId);
+    const user = await User.findById(userId);
 
     if (user.roles == "user") {
       const exist = await Pickup.findIdByUser(id, userId);
@@ -349,7 +354,7 @@ const deleteById = async (req, res) => {
         const oldFilePath = exist.photo.split(`https://storage.googleapis.com/${bucket.name}/`)[1];
         const oldFile = bucket.file(oldFilePath);
         
-        await Pickup.deleteById(id, userId);
+        await Pickup.deletePickup(id, userId);
         await oldFile.delete();
 
         return res.status(200).json({

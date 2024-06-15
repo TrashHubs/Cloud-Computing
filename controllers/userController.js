@@ -1,15 +1,19 @@
 const { sendVerifyEmail, sendResetPasswordEmail } = require('../services/emailService');
 const { admin } = require("../config/firebaseConfig");
+
 const User = require("../models/userModel");
+const Pin = require("../models/pinModel");
 
 const validator = require('validator');
-
 const { v4: uuidv4 } = require("uuid");
+
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
+
+const generatePin = require('../services/generatePin');
 
 const register = async (req, res) => {
-  const { name, email, password, phone, mitra } = req.body;
+  const { name, email, password, confirmPassword, phone, mitra } = req.body;
   const id = uuidv4();
   let roles = "";
 
@@ -28,6 +32,11 @@ const register = async (req, res) => {
       error: true,
       message: "Password is required!"
     })
+  } else if (validator.isEmpty(confirmPassword)) {
+    return res.status(400).json({
+      error: true,
+      message: "Confirm password is required!"
+    })
   } else if (validator.isEmpty(phone) || !validator.matches(phone, /^\+628\d{9,11}$/)) {
     return res.status(400).json({
       error: true,
@@ -36,8 +45,8 @@ const register = async (req, res) => {
   }
 
   try {
-    const emailExist = await User.findUserByEmail(email);
-    const phoneExist = await User.findUserByPhone(phone);
+    const emailExist = await User.findByEmail(email);
+    const phoneExist = await User.findByPhone(phone);
 
     if (emailExist) {
       return res.status(400).json({
@@ -60,31 +69,41 @@ const register = async (req, res) => {
         roles = "mitra";
       }
 
-      const user = new User(id, name, email, hashedPassword, phone, "", mitra, roles, "", "");
-      await User.saveUser(user);
+      if (password !== confirmPassword) {
+        return res.status(400).json({
+          error: true,
+          message: "Password does not match!"
+        })
 
-      await admin.auth().createUser({
-        uid: id,
-        displayName: name,
-        email: email,
-        password: hashedPassword,
-        phoneNumber: phone
-      });
+      } else {
+        const user = new User(id, name, email, hashedPassword, phone, "", mitra, roles, "", "");
 
-      const link = await admin.auth().generateEmailVerificationLink(email);
-      sendVerifyEmail(email, link);
+        await User.saveUser(user);
+        await Pin.savePin(id);
 
-      return res.status(201).json({
-        error: false,
-        message: "Successfully create user!",
-        registerResult: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          phone: user.phone,
-          roles: user.roles
-        }
-      })
+        await admin.auth().createUser({
+          uid: id,
+          displayName: name,
+          email: email,
+          password: hashedPassword,
+          phoneNumber: phone
+        });
+
+        const link = await admin.auth().generateEmailVerificationLink(email);
+        sendVerifyEmail(email, link);
+
+        return res.status(201).json({
+          error: false,
+          message: "Successfully create user!",
+          registerResult: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            phone: user.phone,
+            roles: user.roles
+          }
+        })
+      }
     }
 
   } catch (error) {
@@ -111,7 +130,7 @@ const login = async (req, res) => {
   }
 
   try {
-    const user = await User.findUserByEmail(email);
+    const user = await User.findByEmail(email);
     const checkPassword =  await bcrypt.compare(password, user.password);
 
     if (checkPassword) {
@@ -157,7 +176,7 @@ const profile = async (req, res) => {
   const userId = req.user.uid;
 
   try {
-    const user = await User.findUserById(id);
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         error: true,
@@ -172,7 +191,7 @@ const profile = async (req, res) => {
       return res.status(200).json({
         error: false,
         message: "Successfully get user!",
-        profile: {
+        profileResult: {
           id: user.id,
           name: user.name,
           email: user.email,
@@ -211,7 +230,7 @@ const update = async (req, res) => {
   }
 
   try {
-    const exist = await User.findUserById(id);
+    const exist = await User.findById(id);
     if (exist.id !== userId) {
       return res.status(401).json({
         error: true,
@@ -265,7 +284,7 @@ const update = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const { id } = req.params;
-  const { oldPassword, newPassword } = req.body;
+  const { oldPassword, newPassword, confirmPassword } = req.body;
 
   if (validator.isEmpty(oldPassword)) {
     return res.status(400).json({
@@ -277,10 +296,15 @@ const changePassword = async (req, res) => {
       error: true,
       message: "New password is required!"
     })
+  } else if (validator.isEmpty(confirmPassword)) {
+    return res.status(400).json({
+      error: true,
+      message: "Confirm password is required!"
+    })
   }
 
   try {
-    const user = await User.findUserById(id);
+    const user = await User.findById(id);
 
     const checkPassword = await bcrypt.compare(oldPassword, user.password);
     if (!checkPassword) {
@@ -292,13 +316,21 @@ const changePassword = async (req, res) => {
     } else {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      await User.changePassword(id, hashedPassword);
-      await admin.auth().updateUser(id, { password: hashedPassword });
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({
+          error: true,
+          message: "New password and confirm password does not match!"
+        })
 
-      return res.status(200).json({
-        error: false,
-        message: "Successfully change password!"
-      })
+      } else {
+        await User.changePassword(id, hashedPassword);
+        await admin.auth().updateUser(id, { password: hashedPassword });
+
+        return res.status(200).json({
+          error: false,
+          message: "Successfully change password!"
+        })
+      }
     }
 
   } catch (error) {
@@ -309,7 +341,7 @@ const changePassword = async (req, res) => {
   }
 }
 
-const resetPassword = async (req, res) => {
+const sendResetPassword = async (req, res) => {
   const { email } = req.body;
 
   if (validator.isEmpty(email) || !validator.isEmail(email)) {
@@ -320,7 +352,7 @@ const resetPassword = async (req, res) => {
   }
 
   try {
-    const user = await User.findUserByEmail(email);
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(400).json({
         error: true,
@@ -328,27 +360,116 @@ const resetPassword = async (req, res) => {
       })
 
     } else {
-      const link = await admin.auth().generatePasswordResetLink(email);
+      const userId = user.id;
+      const pin = generatePin(6);
+      const hashedPin = await bcrypt.hash(pin, 10);
+      const exp = Date.now() + 3600000;
 
-      sendResetPasswordEmail(email, link);
-      await User.logoutUser(user.id);
+      const data = new Pin(userId, hashedPin, exp, false);
+      await Pin.updatePin(data);
 
-      res.clearCookie('jwt', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'Strict'
-      })
+      sendResetPasswordEmail(email, pin);
 
       return res.status(200).json({
         error: false,
-        message: "Reset password email sent!"
+        message: "Successfully send reset password pin!"
       })
     }
 
   } catch (error) {
     return res.status(400).json({
       error: true,
-      message: "Failed to reset password!"
+      message: "Failed to send reset password pin!"
+    })
+  }
+}
+
+const resetPassword = async (req, res) => {
+  const { email, pin, password, confirmPassword } = req.body;
+
+  if (validator.isEmpty(email) || !validator.isEmail(email)) {
+    return res.status(400).json({
+      error: true,
+      message: "Valid email is required!"
+    })
+  } else if (validator.isEmpty(pin)) {
+    return res.status(400).json({
+      error: true,
+      message: "Pin is required!"
+    })
+  } else if (validator.isEmpty(password)) {
+    return res.status(400).json({
+      error: true,
+      message: "Password is required!"
+    })
+  } else if (validator.isEmpty(confirmPassword)) {
+    return res.status(400).json({
+      error: true,
+      message: "Confirm password is required!"
+    })
+  }
+
+  try {
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(400).json({
+        error: true,
+        message: "Email is not registered!"
+      })
+
+    } else {
+      const userId = user.id;
+      const data = await Pin.findById(userId);
+
+      if (data.used) {
+        return res.status(400).json({
+          error: true,
+          message: "PIN has already been used! Please request a new PIN."
+        });
+      }
+
+      const checkPin = await bcrypt.compare(pin, data.pin);
+      if (!checkPin || data.exp < Date.now()) {
+        return res.status(400).json({
+          error: true,
+          message: "Invalid or expired PIN!"
+        })
+
+      } else {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        if (password !== confirmPassword) {
+          return res.status(400).json({
+            error: true,
+            message: "Password and confirm password does not match!"
+          })
+
+        } else {
+          const pin = new Pin(userId, data.pin, data.exp, true);
+          await Pin.updatePin(pin);
+
+          await User.changePassword(userId, hashedPassword);
+          await admin.auth().updateUser(userId, { password: hashedPassword });
+
+          await User.logoutUser(userId);
+
+          res.clearCookie('jwt', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'Strict'
+          })
+
+          return res.status(200).json({
+            error: false,
+            message: "Successfully reset password!"
+          })
+        }
+      }
+    }
+
+  } catch (error) {
+    return res.status(400).json({
+      error: true,
+      message: "Failed to reset password! Try again later."
     })
   }
 }
@@ -416,7 +537,7 @@ const refreshToken = async (req, res) => {
       })
     }
 
-    const user = await User.findUserById(decoded.uid);
+    const user = await User.findById(decoded.uid);
 
     if (user && user.token === token) {
       const newAccessToken = jwt.sign({ uid: user.id, email: user.email }, process.env.ACCESS_TOKEN_KEY, { expiresIn: '10m' });
@@ -443,4 +564,4 @@ const refreshToken = async (req, res) => {
   }
 }
 
-module.exports = { register, login, profile, update, changePassword, resetPassword, logout, refreshToken };
+module.exports = { register, login, profile, update, changePassword, sendResetPassword, resetPassword, logout, refreshToken };

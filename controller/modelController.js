@@ -57,7 +57,7 @@ async function predictModel(req, res, next) {
       predictionsResult: data,
     });
   } catch (error) {
-    next(new InputError(`An error occurred in the prediction process: ${error.message}`, error.statusCode || 400));
+    next(new InputError(`${error.message}`, error.statusCode || 400));
   }
 }
 
@@ -89,7 +89,7 @@ async function getPredictionsId(req, res, next) {
       });
     }
   } catch (error) {
-    next(new InputError(`Failed to get prediction ${error.message}`, error.statusCode || 400));
+    next(new InputError(`${error.message}`, error.statusCode || 400));
   }
 }
 

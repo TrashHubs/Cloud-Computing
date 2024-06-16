@@ -44,10 +44,10 @@ async function predict(model, imageBuffer) {
   } catch (error) {
     let errorMessage;
 
-    if (error.message.includes('expected conv2d_input to have shape')) {
+    if (error.message.includes('expected rescaling_input to have shape')) {
       errorMessage = 'The image format is not appropriate, please use an image with the correct formatting';
     } else {
-      errorMessage = `An error occurred in the prediction process: ${error.message}`;
+      errorMessage = `${error.message}`;
     }
 
     throw new InputError(errorMessage, 400);

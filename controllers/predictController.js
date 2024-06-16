@@ -66,7 +66,7 @@ const predictModel = async (req, res) => {
         await file.makePublic();
         const imageUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
 
-        const predict = new Predict(id, label, suggestion, explanation, recyclePercentage, imageUrl, userId, createdAt);
+        const predict = new Predict(id, label, suggestion, explanation, recyclePercentage.toFixed(2), imageUrl, userId, createdAt);
         await Predict.save(predict);
 
         return res.status(201).json({

@@ -539,7 +539,7 @@ https://express-api-aexgdrshda-et.a.run.app
   ```json
   {
     "error": false,
-    "message": "Successfully get articles!",
+    "message": "Successfully create pickup!",
     "pickupResult": [
       {
         "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",

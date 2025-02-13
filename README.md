@@ -538,10 +538,10 @@ https://express-api-aexgdrshda-et.a.run.app
 - **Request Body**
 
   ```
-  photo: [file]
-  weight: [number]
-  lat: [number]
-  lon: [number]
+  photo: [file],
+  weight: [number],
+  lat: [number],
+  lon: [number],
   description: [string]
   ```
 

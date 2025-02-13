@@ -540,14 +540,21 @@ https://express-api-aexgdrshda-et.a.run.app
   {
     "error": false,
     "message": "Successfully get articles!",
-    "articleResults": [
+    "pickupResult": [
       {
         "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        "title": "xxxx",
-        "content": "xxxx xxxx xxxx xxxx",
-        "author": "xx",
-        "image": "https://storage.googleapis.com/trashhub.appspot.com/articles/black.png-xxxxxxxxxxxxx",
-        "date": "2024-01-01"
+        "photo": "https://storage.googleapis.com/trashhub.appspot.com/pickups/black.png-xxxxxxxxxxxxx",
+        "weight": "10 Kg",
+        "lat": "1",
+        "lon": "1",
+        "description": "Sampah Organik",
+        "pickup_date": "",
+        "pickup_time": "",
+        "status": "pending",
+        "notifUser": "unread",
+        "notifMitra": "unread",
+        "userId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "mitraId": ""
       },
       ...
     ]

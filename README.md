@@ -535,6 +535,16 @@ https://express-api-aexgdrshda-et.a.run.app
   Authorization: Bearer <token>
   ```
 
+- **Request Body**
+
+  ```
+  photo: [file]
+  weight: [number]
+  lat: [number]
+  lon: [number]
+  description: [string]
+  ```
+
 - **Response**
   ```json
   {
